@@ -6,7 +6,7 @@ import { SearchResult } from '@/types/weather';
 import styles from './CitySearch.module.css';
 
 interface CitySearchProps {
-  onCitySelect: (city: string) => void;
+  onCitySelect: (city: SearchResult) => void;
   currentCity?: string;
 }
 
@@ -70,8 +70,8 @@ export function CitySearch({ onCitySelect }: CitySearchProps) {
   };
 
   const handleCitySelect = (city: SearchResult) => {
-    onCitySelect(city.name);
-    setQuery(city.name);
+    onCitySelect(city);
+    setQuery(city.display_name);
     setIsOpen(false);
     setSelectedIndex(-1);
   };
@@ -81,7 +81,13 @@ export function CitySearch({ onCitySelect }: CitySearchProps) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          onCitySelect(`${latitude},${longitude}`);
+          onCitySelect({
+            place_id: Date.now(),
+            display_name: `${latitude},${longitude}`,
+            lat: latitude.toString(),
+            lon: longitude.toString(),
+            address: { city: '', town: '', village: '', state: '', country: '' },
+          });
         },
         (error) => {
           console.error('Erro ao obter localização:', error);
@@ -94,57 +100,46 @@ export function CitySearch({ onCitySelect }: CitySearchProps) {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.searchContainer}>
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Digite o nome da cidade..."
-          className={styles.input}
-        />
-        <button
-          onClick={handleLocationClick}
-          className={styles.locationButton}
-          title="Usar minha localização"
-        >
-          📍
-        </button>
-      </div>
-
+    <>
+      <input
+        ref={inputRef}
+        type="text"
+        value={query}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        placeholder="Digite o nome da cidade..."
+        className={styles.input}
+      />
       {isOpen && (
         <div ref={dropdownRef} className={styles.dropdown}>
           {isLoading && (
             <div className={styles.loading}>Buscando cidades...</div>
           )}
-          
           {error && (
             <div className={styles.error}>
               Erro ao buscar cidades. Tente novamente.
             </div>
           )}
-          
           {cities && cities.length > 0 && (
             <ul className={styles.cityList}>
               {cities.map((city, index) => (
                 <li
-                  key={city.id}
+                  key={city.place_id}
                   className={`${styles.cityItem} ${
                     index === selectedIndex ? styles.selected : ''
                   }`}
                   onClick={() => handleCitySelect(city)}
                 >
-                  <div className={styles.cityName}>{city.name}</div>
+                  <div className={styles.cityName}>{city.display_name}</div>
                   <div className={styles.cityDetails}>
-                    {city.region && `${city.region}, `}{city.country}
+                    {city.address?.city || city.address?.town || city.address?.village || ''}
+                    {city.address?.state ? `, ${city.address.state}` : ''}
+                    {city.address?.country ? `, ${city.address.country}` : ''}
                   </div>
                 </li>
               ))}
             </ul>
           )}
-          
           {cities && cities.length === 0 && query.length >= 2 && (
             <div className={styles.noResults}>
               Nenhuma cidade encontrada para &quot;{query}&quot;
@@ -152,6 +147,6 @@ export function CitySearch({ onCitySelect }: CitySearchProps) {
           )}
         </div>
       )}
-    </div>
+    </>
   );
 } 

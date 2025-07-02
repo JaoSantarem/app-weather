@@ -7,7 +7,8 @@ const LONGITUDE = -46.63;
 
 const fetchWeather = async () => {
   const { data } = await axios.get(
-    `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&current=temperature_2m,wind_speed_10m`
+    `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&hourly=temperature_2m`
+    
   );
   return data;
 };

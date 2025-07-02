@@ -6,7 +6,12 @@ import { weatherService } from '@/services/weatherApi';
 export const useWeather = (city: string) => {
   return useQuery({
     queryKey: ['weather', city],
-    queryFn: () => weatherService.getWeatherData(city),
+    queryFn: async () => {
+      const cities = await weatherService.searchCities(city);
+      if (!cities || cities.length === 0) throw new Error('Cidade não encontrada');
+      const { lat, lon } = cities[0];
+      return weatherService.getWeatherByCoords(Number(lat), Number(lon));
+    },
     enabled: !!city,
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 1,

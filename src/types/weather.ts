@@ -1,31 +1,31 @@
 export interface WeatherData {
-  location: {
-    name: string;
-    region: string;
-    country: string;
-    lat: number;
-    lon: number;
-    localtime: string;
+  latitude: number;
+  longitude: number;
+  generationtime_ms: number;
+  utc_offset_seconds: number;
+  timezone: string;
+  timezone_abbreviation: string;
+  elevation: number;
+  current_weather: {
+    temperature: number;
+    windspeed: number;
+    winddirection: number;
+    weathercode: number;
+    time: string;
   };
-  current: {
-    temp_c: number;
-    temp_f: number;
-    condition: {
-      text: string;
-      icon: string;
-      code: number;
-    };
-    humidity: number;
-    wind_kph: number;
-    wind_mph: number;
-    feelslike_c: number;
-    feelslike_f: number;
-    uv: number;
-    pressure_mb: number;
-    pressure_in: number;
+  hourly?: {
+    time: string[];
+    temperature_2m: number[];
+    relative_humidity_2m: number[];
+    precipitation: number[];
+    weathercode: number[];
   };
-  forecast: {
-    forecastday: ForecastDay[];
+  daily?: {
+    time: string[];
+    temperature_2m_max: number[];
+    temperature_2m_min: number[];
+    precipitation_sum: number[];
+    weathercode: number[];
   };
 }
 
@@ -69,11 +69,15 @@ export interface HourForecast {
 }
 
 export interface SearchResult {
-  id: number;
-  name: string;
-  region: string;
-  country: string;
-  lat: number;
-  lon: number;
-  url: string;
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  address: {
+    city?: string;
+    town?: string;
+    village?: string;
+    state?: string;
+    country?: string;
+  };
 } 

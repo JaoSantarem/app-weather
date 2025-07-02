@@ -1,88 +1,91 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { CitySearch } from '@/components/CitySearch';
-import { WeatherCard } from '@/components/WeatherCard';
+import { CardTempo } from '@/components/WeatherCard';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { UnitToggle } from '@/components/UnitToggle';
-import { useWeather, useWeatherByCoords } from '@/hooks/useWeather';
+import { useWeatherByCoords } from '@/hooks/useWeather';
+import { SearchResult } from '@/types/weather';
 import styles from './page.module.css';
 
+function getBgColorByWeatherCode(c: number) {
+  if ([0, 1].includes(c)) return 'linear-gradient(135deg, #4f8ef7 0%, #70c1ff 100%)'; // Sol
+  if ([2, 3].includes(c)) return 'linear-gradient(135deg, #7b8fa3 0%, #b0b8c1 100%)'; // Nublado
+  if ([45, 48].includes(c)) return 'linear-gradient(135deg, #6e7f8d 0%, #bfc6d1 100%)'; // Neblina
+  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(c)) return 'linear-gradient(135deg, #4e5d6c 0%, #6e8ca0 100%)'; // Chuva
+  if ([71, 73, 75, 77, 85, 86].includes(c)) return 'linear-gradient(135deg, #b3c6e7 0%, #e0e7ef 100%)'; // Neve
+  if ([95, 96, 99].includes(c)) return 'linear-gradient(135deg, #5a4e7c 0%, #b8a1e3 100%)'; // Tempestade
+  return 'linear-gradient(135deg, #4f8ef7 0%, #70c1ff 100%)'; // Default
+}
+
 export default function Home() {
-  const [selectedCity, setSelectedCity] = useState<string>('São Paulo');
-  const [unit, setUnit] = useState<'celsius' | 'fahrenheit'>('celsius');
-  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [cidadeEscolhida, setCidadeEscolhida] = useState<SearchResult | null>(null);
+  const [unidade, setUnidade] = useState<'celsius' | 'fahrenheit'>('celsius');
+  const [diaEscolhido, mudaDia] = useState(0);
 
-  // Verificar se a cidade selecionada são coordenadas
-  const isCoords = selectedCity.includes(',');
+  const lat = cidadeEscolhida ? Number(cidadeEscolhida.lat) : null;
+  const lon = cidadeEscolhida ? Number(cidadeEscolhida.lon) : null;
 
-  const weatherByCoordsQuery = useWeatherByCoords(coords?.lat || 0, coords?.lon || 0);
-  const weatherByCityQuery = useWeather(selectedCity);
-  
-  const weatherQuery = isCoords ? weatherByCoordsQuery : weatherByCityQuery;
+  const tempoQuery = useWeatherByCoords(lat || 0, lon || 0);
 
-  useEffect(() => {
-    if (isCoords) {
-      const [lat, lon] = selectedCity.split(',').map(Number);
-      setCoords({ lat, lon });
-    } else {
-      setCoords(null);
-    }
-  }, [selectedCity, isCoords]);
+  let codBg = 0;
+  if (tempoQuery.data && tempoQuery.data.daily) {
+    codBg = tempoQuery.data.daily.weathercode[diaEscolhido] ?? 0;
+  } else if (tempoQuery.data && tempoQuery.data.current_weather) {
+    codBg = tempoQuery.data.current_weather.weathercode ?? 0;
+  }
+  const bgStyle = { background: getBgColorByWeatherCode(codBg) };
 
-  const handleCitySelect = (city: string) => {
-    setSelectedCity(city);
+  const aoEscolherCidade = (c: SearchResult) => {
+    setCidadeEscolhida(c);
+    mudaDia(0);
   };
 
-  const handleUnitChange = (newUnit: 'celsius' | 'fahrenheit') => {
-    setUnit(newUnit);
+  const aoMudarUnidade = (u: 'celsius' | 'fahrenheit') => {
+    setUnidade(u);
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={bgStyle}>
       <header className={styles.header}>
-        <h1 className={styles.title}>🌤️ Weather App</h1>
-        <p className={styles.subtitle}>Previsão do tempo em tempo real</p>
+        <h1 className={styles.title}>Previsão do tempo</h1>
       </header>
 
       <main className={styles.main}>
-        <div className={styles.controls}>
-          <CitySearch onCitySelect={handleCitySelect} />
-          <UnitToggle unit={unit} onUnitChange={handleUnitChange} />
-        </div>
+        <CitySearch onCitySelect={aoEscolherCidade} />
 
-        <div className={styles.content}>
-          {weatherQuery.isLoading && (
-            <LoadingSpinner message="Carregando dados do clima..." />
-          )}
+        {tempoQuery.isLoading && (
+          <LoadingSpinner message="Carregando dados do clima..." />
+        )}
 
-          {weatherQuery.error && (
-            <div className={styles.error}>
-              <h2>Erro ao carregar dados</h2>
-              <p>
-                {weatherQuery.error instanceof Error 
-                  ? weatherQuery.error.message 
-                  : 'Ocorreu um erro inesperado. Tente novamente.'}
-              </p>
-            </div>
-          )}
+        {tempoQuery.error && (
+          <div className={styles.error}>
+            <h2>Erro ao carregar dados</h2>
+            <p>
+              {tempoQuery.error instanceof Error 
+                ? tempoQuery.error.message 
+                : 'Ocorreu um erro inesperado. Tente novamente.'}
+            </p>
+          </div>
+        )}
 
-          {weatherQuery.data && (
-            <WeatherCard data={weatherQuery.data} unit={unit} />
-          )}
+        {tempoQuery.data && cidadeEscolhida && (
+          <CardTempo
+            dados={tempoQuery.data}
+            unidade={unidade}
+            nomeCidade={cidadeEscolhida.display_name}
+            mudaUnidade={aoMudarUnidade}
+            diaEscolhido={diaEscolhido}
+            mudaDia={mudaDia}
+          />
+        )}
 
-          {!weatherQuery.isLoading && !weatherQuery.error && !weatherQuery.data && (
-            <div className={styles.empty}>
-              <h2>Bem-vindo ao Weather App!</h2>
-              <p>Digite o nome de uma cidade para ver a previsão do tempo.</p>
-            </div>
-          )}
-        </div>
+        {!tempoQuery.isLoading && !tempoQuery.error && !tempoQuery.data && (
+          <div className={styles.empty}>
+            <p>Digite o nome de uma cidade obter a previsão do tempo</p>
+          </div>
+        )}
       </main>
-
-      <footer className={styles.footer}>
-        <p>© 2024 Weather App - Dados fornecidos pela WeatherAPI.com</p>
-      </footer>
     </div>
   );
 }

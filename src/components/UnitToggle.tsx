@@ -10,7 +10,6 @@ interface UnitToggleProps {
 export function UnitToggle({ unit, onUnitChange }: UnitToggleProps) {
   return (
     <div className={styles.container}>
-      <span className={styles.label}>Unidade:</span>
       <div className={styles.toggle}>
         <button
           className={`${styles.button} ${unit === 'celsius' ? styles.active : ''}`}

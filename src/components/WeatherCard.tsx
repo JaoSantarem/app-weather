@@ -2,167 +2,149 @@
 
 import { WeatherData } from '@/types/weather';
 import styles from './WeatherCard.module.css';
+import { useState } from 'react';
+import { UnitToggle } from './UnitToggle';
 
-interface WeatherCardProps {
-  data: WeatherData;
-  unit: 'celsius' | 'fahrenheit';
+interface CardTempoProps {
+  dados: WeatherData;
+  unidade: 'celsius' | 'fahrenheit';
+  nomeCidade: string;
+  mudaUnidade: (u: 'celsius' | 'fahrenheit') => void;
+  diaEscolhido: number;
+  mudaDia: (d: number) => void;
 }
 
-export function WeatherCard({ data, unit }: WeatherCardProps) {
-  const formatTemperature = (tempC: number, tempF: number) => {
-    return unit === 'celsius' ? `${Math.round(tempC)}°C` : `${Math.round(tempF)}°F`;
+const codigosClima: Record<number, { texto: string; icone: string }> = {
+  0: { texto: 'Sol', icone: '☀️' },
+  1: { texto: 'Meio sol', icone: '🌤️' },
+  2: { texto: 'Nublado', icone: '⛅' },
+  3: { texto: 'Nuvens', icone: '☁️' },
+  45: { texto: 'Névoa', icone: '🌫️' },
+  48: { texto: 'Névoa', icone: '🌫️' },
+  51: { texto: 'Chuvisco', icone: '🌦️' },
+  53: { texto: 'Chuvisco', icone: '🌦️' },
+  55: { texto: 'Chuvisco', icone: '🌧️' },
+  56: { texto: 'Chuvisco', icone: '🌧️' },
+  57: { texto: 'Chuvisco', icone: '🌧️' },
+  61: { texto: 'Chuva', icone: '🌦️' },
+  63: { texto: 'Chuva', icone: '🌧️' },
+  65: { texto: 'Chuva', icone: '🌧️' },
+  66: { texto: 'Chuva', icone: '🌧️' },
+  67: { texto: 'Chuva', icone: '🌧️' },
+  71: { texto: 'Neve', icone: '🌨️' },
+  73: { texto: 'Neve', icone: '🌨️' },
+  75: { texto: 'Neve', icone: '❄️' },
+  77: { texto: 'Neve', icone: '❄️' },
+  80: { texto: 'Chuvinha', icone: '🌦️' },
+  81: { texto: 'Chuvinha', icone: '🌧️' },
+  82: { texto: 'Chuvona', icone: '🌧️' },
+  85: { texto: 'Neve', icone: '🌨️' },
+  86: { texto: 'Neve', icone: '❄️' },
+  95: { texto: 'Tempestade', icone: '⛈️' },
+  96: { texto: 'Tempestade', icone: '⛈️' },
+  99: { texto: 'Tempestade', icone: '⛈️' },
+};
+
+function corFundoClima(c: number) {
+  if ([0, 1].includes(c)) return 'linear-gradient(135deg, #4f8ef7 0%, #70c1ff 100%)';
+  if ([2, 3].includes(c)) return 'linear-gradient(135deg, #7b8fa3 0%, #b0b8c1 100%)';
+  if ([45, 48].includes(c)) return 'linear-gradient(135deg, #6e7f8d 0%, #bfc6d1 100%)';
+  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(c)) return 'linear-gradient(135deg, #4e5d6c 0%, #6e8ca0 100%)';
+  if ([71, 73, 75, 77, 85, 86].includes(c)) return 'linear-gradient(135deg, #b3c6e7 0%, #e0e7ef 100%)';
+  if ([95, 96, 99].includes(c)) return 'linear-gradient(135deg, #5a4e7c 0%, #b8a1e3 100%)';
+  return 'linear-gradient(135deg, #4f8ef7 0%, #70c1ff 100%)';
+}
+
+export function CardTempo({ dados, unidade, nomeCidade, mudaUnidade, diaEscolhido, mudaDia }: CardTempoProps) {
+  const agora = new Date();
+  const ehHoje = diaEscolhido === 0;
+  const cod = ehHoje
+    ? dados.current_weather?.weathercode ?? 0
+    : dados.daily?.weathercode[diaEscolhido] ?? 0;
+  const cond = codigosClima[cod] || { texto: 'Sei lá', icone: '❓' };
+  const temp = ehHoje
+    ? dados.current_weather?.temperature ?? null
+    : dados.daily?.temperature_2m_max[diaEscolhido] ?? null;
+  const vento = ehHoje
+    ? dados.current_weather?.windspeed ?? null
+    : null;
+  const ventoDir = ehHoje
+    ? dados.current_weather?.winddirection ?? null
+    : null;
+  const tempFormatada = (t: number) => {
+    if (unidade === 'celsius') return `${Math.round(t)}°C`;
+    return `${Math.round(t * 9/5 + 32)}°F`;
   };
-
-  const formatWind = (windKph: number, windMph: number) => {
-    return unit === 'celsius' ? `${windKph} km/h` : `${windMph} mph`;
-  };
-
-  const formatPressure = (pressureMb: number, pressureIn: number) => {
-    return unit === 'celsius' ? `${pressureMb} mb` : `${pressureIn} in`;
-  };
-
-  const getWeatherIcon = (conditionCode: number) => {
-    // Mapeamento básico de códigos de condição para emojis
-    const iconMap: { [key: number]: string } = {
-      1000: '☀️', // Clear
-      1003: '⛅', // Partly cloudy
-      1006: '☁️', // Cloudy
-      1009: '☁️', // Overcast
-      1030: '🌫️', // Mist
-      1063: '🌦️', // Patchy rain
-      1066: '🌨️', // Patchy snow
-      1069: '🌨️', // Patchy sleet
-      1087: '⛈️', // Thundery outbreaks
-      1114: '🌨️', // Blowing snow
-      1117: '❄️', // Blizzard
-      1135: '🌫️', // Fog
-      1147: '🌫️', // Freezing fog
-      1150: '🌧️', // Patchy light drizzle
-      1153: '🌧️', // Light drizzle
-      1168: '🌧️', // Freezing drizzle
-      1171: '🌧️', // Heavy freezing drizzle
-      1180: '🌦️', // Patchy light rain
-      1183: '🌧️', // Light rain
-      1186: '🌧️', // Moderate rain at times
-      1189: '🌧️', // Moderate rain
-      1192: '🌧️', // Heavy rain at times
-      1195: '🌧️', // Heavy rain
-      1198: '🌧️', // Light freezing rain
-      1201: '🌧️', // Moderate or heavy freezing rain
-      1204: '🌨️', // Light sleet
-      1207: '🌨️', // Moderate or heavy sleet
-      1210: '🌨️', // Patchy light snow
-      1213: '🌨️', // Light snow
-      1216: '🌨️', // Patchy moderate snow
-      1219: '🌨️', // Moderate snow
-      1222: '🌨️', // Patchy heavy snow
-      1225: '❄️', // Heavy snow
-      1237: '🧊', // Ice pellets
-      1240: '🌦️', // Light rain shower
-      1243: '🌧️', // Moderate or heavy rain shower
-      1246: '🌧️', // Torrential rain shower
-      1249: '🌨️', // Light sleet showers
-      1252: '🌨️', // Moderate or heavy sleet showers
-      1255: '🌨️', // Light snow showers
-      1258: '🌨️', // Moderate or heavy snow showers
-      1261: '🧊', // Light showers of ice pellets
-      1264: '🧊', // Moderate or heavy showers of ice pellets
-      1273: '⛈️', // Patchy light rain with thunder
-      1276: '⛈️', // Moderate or heavy rain with thunder
-      1279: '⛈️', // Patchy light snow with thunder
-      1282: '⛈️', // Moderate or heavy snow with thunder
-    };
-
-    return iconMap[conditionCode] || '🌤️';
-  };
-
   return (
-    <div className={styles.container}>
-      {/* Header com localização */}
+    <div className={styles.container} style={{ background: corFundoClima(cod) }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+        <UnitToggle unit={unidade} onUnitChange={mudaUnidade} />
+      </div>
       <div className={styles.header}>
-        <h1 className={styles.location}>
-          {data.location.name}, {data.location.country}
-        </h1>
-        <p className={styles.time}>
-          {new Date(data.location.localtime).toLocaleString('pt-BR')}
-        </p>
+        <div className={styles.location}>{nomeCidade}</div>
+        <div className={styles.date}>{agora.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+        <div className={styles.time}>{agora.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+        <div className={styles.conditionText}>{cond.texto}</div>
       </div>
-
-      {/* Clima atual */}
-      <div className={styles.currentWeather}>
-        <div className={styles.mainInfo}>
-          <div className={styles.temperature}>
-            {formatTemperature(data.current.temp_c, data.current.temp_f)}
-          </div>
-          <div className={styles.condition}>
-            <span className={styles.icon}>
-              {getWeatherIcon(data.current.condition.code)}
-            </span>
-            <span className={styles.description}>
-              {data.current.condition.text}
-            </span>
-          </div>
-        </div>
-
-        <div className={styles.details}>
-          <div className={styles.detailItem}>
-            <span className={styles.label}>Sensação térmica</span>
-            <span className={styles.value}>
-              {formatTemperature(data.current.feelslike_c, data.current.feelslike_f)}
-            </span>
-          </div>
-          
-          <div className={styles.detailItem}>
-            <span className={styles.label}>Umidade</span>
-            <span className={styles.value}>{data.current.humidity}%</span>
-          </div>
-          
-          <div className={styles.detailItem}>
-            <span className={styles.label}>Vento</span>
-            <span className={styles.value}>
-              {formatWind(data.current.wind_kph, data.current.wind_mph)}
-            </span>
-          </div>
-          
-          <div className={styles.detailItem}>
-            <span className={styles.label}>Pressão</span>
-            <span className={styles.value}>
-              {formatPressure(data.current.pressure_mb, data.current.pressure_in)}
-            </span>
-          </div>
-          
-          <div className={styles.detailItem}>
-            <span className={styles.label}>Índice UV</span>
-            <span className={styles.value}>{data.current.uv}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Previsão para os próximos dias */}
-      <div className={styles.forecast}>
-        <h2 className={styles.forecastTitle}>Previsão para 7 dias</h2>
-        <div className={styles.forecastGrid}>
-          {data.forecast.forecastday.map((day, index) => (
-            <div key={day.date} className={styles.forecastDay}>
-              <div className={styles.dayName}>
-                {index === 0 ? 'Hoje' : 
-                 new Date(day.date).toLocaleDateString('pt-BR', { weekday: 'short' })}
-              </div>
-              <div className={styles.dayIcon}>
-                {getWeatherIcon(day.day.condition.code)}
-              </div>
-              <div className={styles.dayTemp}>
-                <span className={styles.maxTemp}>
-                  {formatTemperature(day.day.maxtemp_c, day.day.maxtemp_f)}
-                </span>
-                <span className={styles.minTemp}>
-                  {formatTemperature(day.day.mintemp_c, day.day.mintemp_f)}
+      <div className={styles.currentWeather} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className={styles.details} style={{ flex: 1, alignItems: 'flex-start', justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
+          {ehHoje ? (
+            <>
+              <div className={styles.detailItem}>
+                <span className={styles.label}>Vento</span>
+                <span className={styles.value}>
+                  {vento !== null ? `${vento} km/h` : '--'}
                 </span>
               </div>
-            </div>
-          ))}
+              <div className={styles.detailItem}>
+                <span className={styles.label}>Direção do vento</span>
+                <span className={styles.value}>
+                  {ventoDir !== null ? `${ventoDir}°` : '--'}
+                </span>
+              </div>
+            </>
+          ) : null}
         </div>
+        <div style={{ flex: 1.2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div className={styles.icon} style={{ textAlign: 'center' }}>{cond.icone}</div>
+          <div className={styles.temperature} style={{ textAlign: 'center', marginLeft: 0 }}>
+            {temp !== null ? tempFormatada(temp) : '--'}
+          </div>
+        </div>
+        <div style={{ flex: 1 }}></div>
       </div>
+      {dados.daily && (
+        <div className={styles.forecast}>
+          <div className={styles.forecastTitle}>Previsão diária</div>
+          <div className={styles.forecastGrid}>
+            {dados.daily.time.map((date, idx) => {
+              const codDia = dados.daily!.weathercode[idx];
+              const condDia = codigosClima[codDia] || { texto: '', icone: '❓' };
+              return (
+                <div
+                  key={date}
+                  className={styles.forecastDay}
+                  style={diaEscolhido === idx ? { border: '2px solid #fff', boxShadow: '0 0 0 2px #fff3' } : {}}
+                  onClick={() => mudaDia(idx)}
+                >
+                  <div className={styles.dayName}>
+                    {idx === 0 ? 'Hoje' : new Date(date).toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}
+                  </div>
+                  <div className={styles.dayIcon}>{condDia.icone}</div>
+                  <div className={styles.dayTemp}>
+                    <span className={styles.maxTemp}>
+                      {tempFormatada(dados.daily!.temperature_2m_max[idx])}
+                    </span>
+                    <span className={styles.minTemp}>
+                      {tempFormatada(dados.daily!.temperature_2m_min[idx])}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
